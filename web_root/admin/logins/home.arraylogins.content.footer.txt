@@ -1,0 +1,115 @@
+<!-- TODO: Convert embedded tlist_sql tags into JSON data inside html5 data tag. -->
+<script type="text/template" id="tables-template">
+    <h1>Current Users logged into PowerSchool and PowerTeacher&nbsp;&nbsp;on&nbsp;&nbsp;~[date]</h1>
+
+                <div class="box-round">
+
+                <table border="0" cellspacing="0" cellpadding="4">
+                <tr bgcolor="#f6f6f6">
+                <td class="bold">#</td>
+        <td class="bold">Type</td>
+        <td class="bold">User</td>
+        <td class="bold">School</td>
+        <td class="bold">Login</td>
+        <td class="bold">Platform</td>
+        <td class="bold">Browser</td>
+        </tr>
+            <!-- EPSB - L.Stevens - For server arrays, we need to display all users currently logged into PS.
+             NOTE: PowerSchool does not like colons or semi-colons in a tlist_sql statement.
+             to_char(TO_DATE(lg.logintime,'SSSSS'),'HH:MI:SS PM') logintime
+             to_char(to_date(to_char(lg.logindate,'YYYY/MM/DD') || ' ' || to_char(lg.logintime), 'YYYY/MM/DD SSSSS'),'HH:MI PM') loginHHMI,
+             where logindate=to_date((select sysdate from dual),'YY-MM-DD')
+            -->
+        ~[tlist_sql;
+        select CASE WHEN lg.usertype=10 THEN 'Faculty' WHEN lg.usertype=400 THEN 'Teacher' WHEN lg.usertype=450 THEN 'Substitue' WHEN lg.usertype=200 THEN 'Maintenance' WHEN lg.usertype=-1 THEN 'Maintenance (-1)' ELSE to_char(lg.usertype) END usertype,
+                NVL(t.lastfirst,' ') lastfirst, t.schoolid,
+                to_char(TO_DATE(lg.logintime,'SSSSS'),'HH.MI.SS PM') logintime,
+                CASE WHEN lg.platform=2 THEN 'Windows' WHEN lg.platform=1 THEN 'Mac' ELSE to_char(lg.platform) END platform,
+                CASE WHEN lg.useragent like '%MSIE%' THEN 'IE' WHEN lg.useragent like '%Chrome%' THEN 'Chrome' WHEN lg.useragent like '%Firefox%' THEN 'Firefox' WHEN lg.useragent like '%iPad%' THEN 'iPad' WHEN lg.useragent like '%Opera%' THEN 'Opera' WHEN lg.useragent like '%Safari%' THEN 'Safari' ELSE 'other' END browser
+        from logins lg
+        left outer join teachers t on lg.userid = t.id
+        where logindate=to_date('~[date;dateformat='MM/DD/YYYY']','MM/DD/YYYY')
+        and logouttime=0
+        order by 2]
+        <tr>
+                <td>~(count;-)</td>
+                <td>~(usertype;t)</td>
+                <td>~(lastfirst;t)</td>
+                <td>~(t.schoolid;t)</td>
+                <td>~(logintime;t)</td>
+                <td>~(platform;t)</td>
+                <td>~(browser;t)</td>
+        </tr>
+        [/tlist_sql]
+        </table>
+
+        </div>
+
+                <h1>Current Users logged into PowerTeacher Gradebook</h1>
+
+        <div class="box-round">
+
+                <table border="0" cellspacing="0" cellpadding="4">
+                <tr bgcolor="#f6f6f6">
+                <td class="bold">#</td>
+        <td class="bold">Teacher Name</td>
+        <td class="bold">Last Activity</td>
+        </tr>
+        ~[tlist_sql;select psmt.lastname, psmt.firstname, to_char(psmu.timestampvalue, 'HH')||chr(58)||to_char(psmu.timestampvalue, 'MI')||chr(58)||to_char(psmu.timestampvalue, 'SS')||' '||CASE WHEN to_number(to_char(psmu.timestampvalue, 'HH24')) >=12 then 'PM' ELSE 'AM' END lastactive
+        from psm_usersession psmu
+        inner join psm_teacher psmt on psmu.teacherid = psmt.id order by 1,2]
+        <tr>
+                <td>~(count;-)</td>
+                <td>~(psmt.lastname;t), ~(psmt.firstname;t)</td>
+                <td>~(lastactive;t)</td>
+        </tr>
+        [/tlist_sql]
+        </table>
+
+        </div>
+
+                <h1>Current Users logged into PT Admin or Report Works</h1>
+
+        <div class="box-round">
+
+                <table border="0" cellspacing="0" cellpadding="4">
+                <tr bgcolor="#f6f6f6">
+                <td class="bold">#</td>
+        <td class="bold">User Name</td>
+        <td class="bold">Last Activity</td>
+        </tr>
+        ~[tlist_sql;select psma.lastname, psma.firstname, to_char(psmas.lastactivetimestamp, 'HH')||chr(58)||to_char(psmas.lastactivetimestamp, 'MI')||chr(58)||to_char(psmas.lastactivetimestamp, 'SS')||' '||CASE WHEN to_number(to_char(psmas.lastactivetimestamp, 'HH24')) >=12 then 'PM' ELSE 'AM' END lastactive
+        from psm_accountsession psmas
+        inner join psm_account psma on psmas.accountid = psma.id order by 1,2]
+        <tr>
+                <td>~(count;-)</td>
+                <td>~(psma.lastname;t), ~(psma.firstname;t)</td>
+                <td>~(lastactive;t)</td>
+        </tr>
+        [/tlist_sql]
+        </table>
+
+        </div>
+
+</script>
+
+<script type="text/template" id="header-template">
+    Current Users logged into server: ~[x:systeminfo:machine.name]&nbsp;&nbsp;on&nbsp;&nbsp;~[date]&nbsp;&nbsp;at&nbsp;&nbsp;~[time]
+</script>
+
+<script>
+    $j(function () {
+        var tablesTemplateScript = $j('#tables-template'); //jQuery object containing template script tag (still seen as script).
+        var tablesTemplateHtml = $j(tablesTemplateScript.html()); //use #template contents ( without script tag, seen as raw html ) to create new jQuery object
+        tablesTemplateHtml.insertAfter($j('.box-round')[0]); //insert the template under first .box-round.
+
+        var headerTemplateScript = $j('#header-template');
+        var headerTemplateHtml = headerTemplateScript.html(); //No need to make this a jQuery object when inserting with innerHTML.
+        $j('h1')[0].innerHTML = headerTemplateHtml;
+
+        //Set correct row coloring (replaces behavior invoked by class="~[evenoddrow]")
+        $j('tr:even').attr('class', 'evenRow');
+        $j('tr:odd').attr('class', 'oddRow');
+
+    });
+</script>
