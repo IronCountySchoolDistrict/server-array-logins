@@ -1,0 +1,4 @@
+<div id="legal">
+  <p>~[text:psx.common.copyright]</p>
+  <p style="font-size:12px">~[x:systeminfo:machine.name]</p>
+</div>
